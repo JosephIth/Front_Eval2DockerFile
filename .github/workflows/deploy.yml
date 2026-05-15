@@ -52,7 +52,7 @@ jobs:
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
             echo "PORT=5000" >> .env
             echo "DEBUG=False" >> .env
-            echo "DOCKER_USERNAME=${{ secrets.DOCKERHUB_NAME }}" >> .env
+            echo "DOCKERHUB_NAME=${{ secrets.DOCKERHUB_NAME }}" >> .env
 
             # Descargar imagen nueva primero
             sudo docker pull ${{ secrets.DOCKERHUB_NAME }}/frontend:latest
