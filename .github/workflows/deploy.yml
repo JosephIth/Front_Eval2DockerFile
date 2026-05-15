@@ -1,0 +1,84 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Logeo en DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_NAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build y Push de imagen Docker 
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_NAME }}/frontend:latest
+  
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (para docker-compose.yml)
+        uses: actions/checkout@v4
+
+      - name: Deploy a EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            #iR AL DIRECTORIO DE LA APP (O CREARLO SI NO EXISTE)
+            mkdir -p ~/frontend
+            cd ~/frontend
+
+            # Crear archivo .env con los secretos
+            echo "BACKEND_URL=${{ secrets.BACKEND_URL }}" > .env
+            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+            echo "PORT=5000" >> .env
+            echo "DEBUG=False" >> .env
+            echo "DOCKER_USERNAME=${{secrets.DOCKERHUB_NAME}}" >> .env
+
+
+            # Descargar el docker-compose.yml actualizado si es necesario
+            # (Aunque en este script simplemente lo usaremos si ya está o lo subimos)
+            
+            # Descargar imagen nueva primero
+            sudo docker pull ${{ secrets.DOCKERHUB_NAME }}/frontend:latest
+
+            # Limpiar contenedores viejos
+            sudo docker compose down || true
+
+            # Ejecutar con compose
+            # Nota: Necesitamos el docker-compose.yml en la máquina. 
+            # Una forma es descargarlo del repo o usar un comando de escritura.
+            cat <<EOF > docker-compose.yml
+            services:
+              frontend:
+                image: ${{ secrets.DOCKERHUB_NAME }}/frontend:latest 
+                container_name: frontend
+                ports:
+                  - "5000:5000"
+                env_file:
+                  - .env
+                restart: always
+            EOF
+
+            sudo docker compose up -d
+
+            # Borrar imágenes viejas/huérfanas
+            sudo docker image prune -f
+          
+  

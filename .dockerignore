@@ -1,0 +1,19 @@
+#Cosas que quiero ignorar en el build
+#AKSJJSAJKSA
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.db
+
+#Archivos de entorno
+.env
+venv
+.venv
+
+#Archivos de configuración
+Dockerfile
+docker-compose.yml
+.github
+*.md
