@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -40,7 +43,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            #iR AL DIRECTORIO DE LA APP (O CREARLO SI NO EXISTE)
+            # IR AL DIRECTORIO DE LA APP (O CREARLO SI NO EXISTE)
             mkdir -p ~/frontend
             cd ~/frontend
 
@@ -49,25 +52,19 @@ jobs:
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
             echo "PORT=5000" >> .env
             echo "DEBUG=False" >> .env
-            echo "DOCKER_USERNAME=${{secrets.DOCKERHUB_NAME}}" >> .env
+            echo "DOCKER_USERNAME=${{ secrets.DOCKERHUB_NAME }}" >> .env
 
-
-            # Descargar el docker-compose.yml actualizado si es necesario
-            # (Aunque en este script simplemente lo usaremos si ya está o lo subimos)
-            
             # Descargar imagen nueva primero
             sudo docker pull ${{ secrets.DOCKERHUB_NAME }}/frontend:latest
 
             # Limpiar contenedores viejos
             sudo docker compose down || true
 
-            # Ejecutar con compose
-            # Nota: Necesitamos el docker-compose.yml en la máquina. 
-            # Una forma es descargarlo del repo o usar un comando de escritura.
-            cat <<EOF > docker-compose.yml
+            # Crear docker-compose.yml con formato correcto
+            cat > docker-compose.yml << 'EOF'
             services:
               frontend:
-                image: ${{ secrets.DOCKERHUB_NAME }}/frontend:latest 
+                image: ${{ secrets.DOCKERHUB_NAME }}/frontend:latest
                 container_name: frontend
                 ports:
                   - "5000:5000"
@@ -76,9 +73,13 @@ jobs:
                 restart: always
             EOF
 
+            # Ejecutar con compose
             sudo docker compose up -d
 
             # Borrar imágenes viejas/huérfanas
             sudo docker image prune -f
+
+            # Verificar que el contenedor esté corriendo
+            sudo docker ps
           
   
